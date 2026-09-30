@@ -28,6 +28,13 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute
 .sec{margin-bottom:18px}
 label{display:block;font-size:13px;font-weight:600;margin:10px 0 4px}
 select{width:100%;padding:8px;border:1px solid #c8cdd3;border-radius:6px;font:inherit;background:#fff}
+input[type=search]{width:100%;padding:8px;border:1px solid #c8cdd3;border-radius:6px;font:inherit}
+.busca{position:relative}
+#sug{position:absolute;left:0;right:0;top:100%;z-index:10;margin:2px 0 0;padding:0;list-style:none;background:#fff;border:1px solid #c8cdd3;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.15);max-height:260px;overflow-y:auto}
+#sug li{padding:7px 9px;cursor:pointer;display:flex;justify-content:space-between;gap:8px}
+#sug li small{color:var(--muted)}
+#sug li:hover,#sug li.on{background:#f0f2f4}
+#sug li.vazio{cursor:default;color:var(--muted)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{border:1px solid #c8cdd3;background:#fff;border-radius:6px;padding:6px 9px;font:inherit;font-size:12.5px;cursor:pointer;display:flex;align-items:center;gap:6px}
 .chip i{width:14px;height:14px;border-radius:3px;border:1px solid rgba(0,0,0,.2);display:inline-block}
@@ -95,6 +102,11 @@ footer{flex:none;text-align:center;font-size:11.5px;color:var(--muted);padding:0
       <select id="fReg"></select>
       <label for="fUf">Unidade da Federação</label>
       <select id="fUf"></select>
+      <label for="fMun">Município</label>
+      <div class="busca">
+        <input id="fMun" type="search" autocomplete="off" placeholder="Digite o nome do município…" role="combobox" aria-expanded="false" aria-controls="sug">
+        <ul id="sug" role="listbox" hidden></ul>
+      </div>
       <label>Quintil do IPM</label>
       <div class="chips" id="fQ"></div>
       <div class="hint">Q1 = municípios com menor pobreza · Q5 = maior pobreza. Sem seleção, todos os quintis são exibidos. Os filtros são cumulativos.</div>
@@ -161,7 +173,7 @@ const map = new maplibregl.Map({
 map.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-right');
 let mapReady=false, dataReady=false;
 
-map.on('load',()=>{
+map.once('style.load',()=>{
   map.addSource('reg',{type:'vector',url:file('BR_Regioes_2025_geodataviewer.pmtiles')});
   map.addSource('uf',{type:'vector',url:file('BR_UF_geodataviewer.pmtiles')});
   map.addSource('mun',{type:'vector',url:file('BR_Municipios_2025 10 por cento mapshifter.pmtiles'),promoteId:'CD_MUN'});
@@ -242,11 +254,47 @@ function init(){
   document.getElementById('fQ').onclick=e=>{const b=e.target.closest('.chip'); if(!b) return;
     const q=+b.dataset.q; state.q.has(q)?state.q.delete(q):state.q.add(q);
     b.setAttribute('aria-pressed',state.q.has(q)); applyFilters(false);};
-  document.getElementById('reset').onclick=()=>{state.reg=state.uf='';state.q.clear();state.sel=null;
+  document.getElementById('reset').onclick=()=>{state.reg=state.uf='';state.q.clear();select(null);
     fReg.value='';fillUf();document.querySelectorAll('.chip').forEach(b=>b.setAttribute('aria-pressed','false'));applyFilters(true);};
   document.getElementById('dVoltar').onclick=()=>select(null);
+  setupBusca();
   document.getElementById('legend').innerHTML='<b>Quintil do IPM</b>'+[1,2,3,4,5].map(q=>`<div><i style="background:${QCOR[q]}"></i>${QTXT[q]}</div>`).join('')+`<div><i style="background:${NOCOR}"></i>Sem dados / fora do filtro</div>`;
   dataReady=true; if(mapReady) applyFilters(false); else renderPanels();
+}
+const norm=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+function setupBusca(){
+  const inp=document.getElementById('fMun'), ul=document.getElementById('sug');
+  const idx=Object.entries(DATA).map(([id,d])=>({id,d,k:norm(d.n)}));
+  let items=[], cur=-1;
+  const close=()=>{ul.hidden=true;inp.setAttribute('aria-expanded','false');cur=-1;};
+  const mark=()=>[...ul.children].forEach((li,i)=>li.classList.toggle('on',i===cur));
+  function render(){
+    const q=norm(inp.value.trim());
+    if(!q){close();return;}
+    // respeita os demais filtros (região, UF, quintil); prefixo antes de "contém"
+    const ok=idx.filter(o=>o.k.includes(q)&&passes(o.d));
+    ok.sort((a,b)=>(b.k.startsWith(q)-a.k.startsWith(q))||a.d.n.localeCompare(b.d.n,'pt'));
+    items=ok.slice(0,12); cur=-1;
+    ul.innerHTML=items.length?items.map((o,i)=>`<li role="option" data-i="${i}">${esc(o.d.n)}<small>${LIM.ufs[String(o.d.u)].sigla}${ok.length>12&&i===11?'':''}</small></li>`).join('')
+      :'<li class="vazio">Nenhum município encontrado com os filtros atuais</li>';
+    ul.hidden=false; inp.setAttribute('aria-expanded','true');
+  }
+  function pick(o){
+    inp.value=o.d.n; close();
+    if(mapReady&&o.d.b) map.fitBounds(o.d.b,{padding:80,maxZoom:9,duration:900});
+    select(o.id);
+  }
+  inp.addEventListener('input',()=>{render(); if(!inp.value) select(null);});
+  inp.addEventListener('focus',render);
+  inp.addEventListener('keydown',e=>{
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();if(!items.length)return;
+      cur=(cur+(e.key==='ArrowDown'?1:-1)+items.length)%items.length;mark();}
+    else if(e.key==='Enter'){const o=items[cur>=0?cur:0]; if(o){e.preventDefault();pick(o);}}
+    else if(e.key==='Escape') close();
+  });
+  ul.addEventListener('mousedown',e=>{const li=e.target.closest('li[data-i]'); if(li){e.preventDefault();pick(items[+li.dataset.i]);}});
+  inp.addEventListener('blur',close);
+  document.getElementById('reset').addEventListener('click',()=>{inp.value='';close();});
 }
 function fillUf(){
   const s=document.getElementById('fUf');
@@ -276,16 +324,23 @@ const CARDS=[
 function renderPanels(){
   if(!DATA) return;
   const tot={}, sx=Array(7).fill(0); let n=0;
-  for(const d of Object.values(DATA)){ if(!passes(d)) continue; n++;
-    for(const k in d.s) tot[k]=(tot[k]||0)+d.s[k]; d.sx.forEach((v,i)=>sx[i]+=v); }
+  const add=d=>{n++; for(const k in d.s) tot[k]=(tot[k]||0)+d.s[k]; d.sx.forEach((v,i)=>sx[i]+=v);};
+  for(const d of Object.values(DATA)) if(passes(d)) add(d);
   let nome='Brasil'; if(state.uf) nome=LIM.ufs[state.uf].nome; else if(state.reg) nome='Região '+LIM.regioes[state.reg].nome;
   const qtxt=state.q.size?` · quintil ${[...state.q].sort().map(q=>'Q'+q).join(', ')}`:'';
-  document.getElementById('scope').innerHTML=`<b>${esc(nome)}</b>${qtxt}<br>${nf.format(n)} municípios · ${nf.format(tot.qtd_pessoas||0)} pessoas`;
+  state.agg={nome:nome+qtxt,sx:[...sx],n,pop:tot.qtd_pessoas||0};
+  // município selecionado: os cards passam a mostrar apenas ele
+  const m=state.sel&&DATA[state.sel];
+  if(m){
+    for(const k in tot) delete tot[k];
+    n=0; add(m);
+    document.getElementById('scope').innerHTML=`<b>${esc(m.n)} – ${LIM.ufs[String(m.u)].sigla}</b> · município selecionado<br>${nf.format(tot.qtd_pessoas||0)} pessoas`;
+  } else
+    document.getElementById('scope').innerHTML=`<b>${esc(nome)}</b>${qtxt}<br>${nf.format(n)} municípios · ${nf.format(tot.qtd_pessoas||0)} pessoas`;
   document.getElementById('cards').innerHTML=CARDS.map(c=>{
     if(c[1]==='grp') return `<div class="grp">${c[0]}</div>`;
     const v=tot[c[1]]||0, base=tot[c[2]]||0;
     return `<div class="card ${c[3]||''}"><div class="t">${c[0]}</div><div class="v">${nf.format(v)}</div><div class="p">${base?nd(1).format(v/base*100)+'% do total':'–'}</div></div>`;}).join('');
-  state.agg={nome:nome+qtxt,sx,n,pop:tot.qtd_pessoas||0};
   renderDetail();
 }
 let chart;
@@ -293,7 +348,7 @@ function select(id){
   if(state.sel&&mapReady) map.setFeatureState({source:'mun',sourceLayer:MUNL,id:state.sel},{sel:false});
   state.sel=id;
   if(id&&mapReady) map.setFeatureState({source:'mun',sourceLayer:MUNL,id},{sel:true});
-  renderDetail();
+  renderPanels();
 }
 function renderDetail(){
   let nome,sub,sx,ind='';

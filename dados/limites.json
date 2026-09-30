@@ -12,7 +12,7 @@
    ]
   },
   "35": {
-   "nome": "S„o Paulo",
+   "nome": "S√£o Paulo",
    "sigla": "SP",
    "regiao": "3",
    "bbox": [
@@ -23,7 +23,7 @@
    ]
   },
   "32": {
-   "nome": "EspÌrito Santo",
+   "nome": "Esp√≠rito Santo",
    "sigla": "ES",
    "regiao": "3",
    "bbox": [
@@ -45,7 +45,7 @@
    ]
   },
   "41": {
-   "nome": "Paran·",
+   "nome": "Paran√°",
    "sigla": "PR",
    "regiao": "4",
    "bbox": [
@@ -78,7 +78,7 @@
    ]
   },
   "23": {
-   "nome": "Cear·",
+   "nome": "Cear√°",
    "sigla": "CE",
    "regiao": "2",
    "bbox": [
@@ -89,7 +89,7 @@
    ]
   },
   "52": {
-   "nome": "Goi·s",
+   "nome": "Goi√°s",
    "sigla": "GO",
    "regiao": "5",
    "bbox": [
@@ -111,7 +111,7 @@
    ]
   },
   "21": {
-   "nome": "Maranh„o",
+   "nome": "Maranh√£o",
    "sigla": "MA",
    "regiao": "2",
    "bbox": [
@@ -133,7 +133,7 @@
    ]
   },
   "22": {
-   "nome": "PiauÌ",
+   "nome": "Piau√≠",
    "sigla": "PI",
    "regiao": "2",
    "bbox": [
@@ -210,7 +210,7 @@
    ]
   },
   "25": {
-   "nome": "ParaÌba",
+   "nome": "Para√≠ba",
    "sigla": "PB",
    "regiao": "2",
    "bbox": [
@@ -232,7 +232,7 @@
    ]
   },
   "11": {
-   "nome": "RondÙnia",
+   "nome": "Rond√¥nia",
    "sigla": "RO",
    "regiao": "1",
    "bbox": [
@@ -243,7 +243,7 @@
    ]
   },
   "16": {
-   "nome": "Amap·",
+   "nome": "Amap√°",
    "sigla": "AP",
    "regiao": "1",
    "bbox": [
@@ -287,7 +287,7 @@
    ]
   },
   "15": {
-   "nome": "Par·",
+   "nome": "Par√°",
    "sigla": "PA",
    "regiao": "1",
    "bbox": [
